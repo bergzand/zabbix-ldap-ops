@@ -6,6 +6,8 @@ import socket
 import sys
 import logging
 import os.path
+import sys
+import argparse
 
 SERVERURI = "ldapi:///"
 BINDDN = "uid=monitor,ou=system,dc=bergzand,dc=net"
@@ -67,13 +69,36 @@ def ParseToLib(statistics, operations):
             zabbixData['data'].append(item)
     return zabbixData
 
+#need to add arguments for:
+# zabbix server
+# zabbix port
+# zabbix key
+# zabbix hostname
+# 
+# ldapuri
+# binddn
+# bindpw
+# monitordb
+
+def argParse():
+    parser = argparse.ArgumentParser(description="Get statistics from ldap and send them to a zabbix server")
+    parser.add_argument('-z','--zabbixserver', nargs='?', default='zabbix')
+    parser.add_argument('-p','--zabbixport', nargs='?', type=int,default='10051')
+    parser.add_argument('-k','--zabbixkey', nargs='?', default='ldap.stats')
+    parser.add_argument('-s','--zabbixhost', nargs='?', default='ldap')
+    parser.add_argument('-H','--uri', nargs='?', default='ldapi:///')
+    parser.add_argument('-D','--binddn', nargs='?')
+    parser.add_argument('-w','--bindpw', nargs='?')
+    parser.add_argument('-b','--monitordb', nargs='?', default='cn=monitor')
+    args=parser.parse_args()
 
 ############
 #main script
 ############
 exitstatus = 0
 zabbixvalue = 1
-
+if len(sys.argv) > 0:
+    argParse()
 #get password
 ldappass = getpw(BINDPASS)
 
