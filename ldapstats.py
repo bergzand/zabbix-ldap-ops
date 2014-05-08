@@ -115,15 +115,17 @@ if 'BINDPASS' not in globals():
 args = vars(argParse())
 print args
 #get password
-ldappass = getpw(args['bindpw'])
-
+if args['bindpw']:
+    ldappass = getpw(args['bindpw'])
+else
+    ldappass = ''
 #make ldap conn object
 conn = ldap.initialize(args['ldapuri'])
 #get ldap data
 try:
     if args['binddn']:
-        if args['bindpw']:
-            conn.simple_bind_s(args['binddn'],args['bindpw'])
+        if ldappass:
+            conn.simple_bind_s(args['binddn'],ldappass)
         else:
             conn.simple_bind_s(args['binddn'])
     else:
