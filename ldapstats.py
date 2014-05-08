@@ -31,7 +31,7 @@ ZABBIXKEY = 'ldap.stats'
 def getpw(bindpw):
     if os.path.isfile(bindpw):
         try:
-            with open (BINDPASS, "r") as passfile:
+            with open (bindpw, "r") as passfile:
                 bindpw=passfile.read()
         except IOError:
             print 'cant open file, IOError {0}: {1}'.format(IOError.errno, IOError.strerror)
