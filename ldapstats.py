@@ -9,7 +9,9 @@ import os.path
 import sys
 import argparse
 
-SERVERURI = "ldapi:///"
+DESCRIPTION="ldapstats.py collects values about statistics of traffic and operations of an openldap server and sends them to the specified zabbix server"
+#default parameters when executed without arguments
+LDAPURI = "ldapi:///"
 BINDDN = "uid=monitor,ou=system,dc=bergzand,dc=net"
 BINDPASS = "/etc/ldap.monitor"
 MONITORDB = "cn=monitor"
@@ -81,17 +83,18 @@ def ParseToLib(statistics, operations):
 # monitordb
 
 def argParse():
-    parser = argparse.ArgumentParser(description="Get statistics from ldap and send them to a zabbix server")
-    parser.add_argument('-z','--zabbixserver', nargs='?', default='zabbix')
-    parser.add_argument('-p','--zabbixport', nargs='?', type=int,default='10051')
-    parser.add_argument('-k','--zabbixkey', nargs='?', default='ldap.stats')
-    parser.add_argument('-s','--zabbixhost', nargs='?', default='ldap')
-    parser.add_argument('-H','--uri', nargs='?', default='ldapi:///')
-    parser.add_argument('-D','--binddn', nargs='?')
-    parser.add_argument('-w','--bindpw', nargs='?')
-    parser.add_argument('-b','--monitordb', nargs='?', default='cn=monitor')
+    parser = argparse.ArgumentParser(description=DESCRIPTION, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-z','--zabbixserver',default=ZABBIXSERVER, help='zabbix server to send values to')
+    parser.add_argument('-p','--zabbixport', default=ZABBIXPORT, help='port on which the zabbix trapper is listening')
+    parser.add_argument('-k','--zabbixkey', default=ZABBIXKEY, help='key to use as a prefix for the values')
+    parser.add_argument('-s','--zabbixhost',default=ZABBIXHOST,help='the host for which the values should be send (probably $HOSTNAME)')
+    parser.add_argument('-H','--ldapuri', default=LDAPURI, help='ldapuri for the ldap server (ldapi:///, ldap://localhost/, ldaps://somehost.domain.tld/')
+    parser.add_argument('-D','--binddn', default=BINDDN, help='DN to bind as, leave empty for anonymous bind')
+    parser.add_argument('-w','--bindpw', default=BINDPASS, help='password for binding with')
+    parser.add_argument('-b','--monitordb', default=MONITORDB, help='basedn of the monitor database')
+    #parser.formatter.max_help_position = 80
     args=parser.parse_args()
-
+    
 ############
 #main script
 ############
@@ -99,11 +102,12 @@ exitstatus = 0
 zabbixvalue = 1
 if len(sys.argv) > 0:
     argParse()
+
 #get password
 ldappass = getpw(BINDPASS)
 
 #make ldap conn object
-conn = ldap.initialize(SERVERURI)
+conn = ldap.initialize(LDAPURI)
 #get ldap data
 try:
     conn.simple_bind_s(BINDDN,ldappass)
