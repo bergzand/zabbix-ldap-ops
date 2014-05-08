@@ -11,9 +11,14 @@ import argparse
 
 DESCRIPTION="ldapstats.py collects values about statistics of traffic and operations of an openldap server and sends them to the specified zabbix server"
 #default parameters when executed without arguments
+
+#ldapuri at which the openldap server can be found
 LDAPURI = "ldapi:///"
-BINDDN = "uid=monitor,ou=system,dc=bergzand,dc=net"
-BINDPASS = "/etc/ldap.monitor"
+#Distinguished name to bind with, specify an empty string or comment to use anonymous bind
+BINDDN = ""
+#Password to bind with, leave empty or comment to bind with no password
+BINDPASS = ""
+#basedn where the monitor backend can be found
 MONITORDB = "cn=monitor"
 
 ZABBIXHOST = 'ldap'
@@ -33,11 +38,11 @@ def getpw(bindpw):
     return bindpw
 
 #send json object to the zabbix server
-def sendtozabbix(data):
+def sendtozabbix(zabbixserver,zabbixport,data):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.settimeout(3.0)
-        s.connect((ZABBIXSERVER,ZABBIXPORT))
+        s.connect((zabbixserver,zabbixport))
     except Exception as e:
         print '{0} {1}: {2}'.format(type(e).__name__, e.errno, e.strerror)
         exitstatus = 1
@@ -47,15 +52,15 @@ def sendtozabbix(data):
     finally: 
         s.close()
 
-def ParseToLib(statistics, operations):
+def ParseToLib(host,key,statistics, operations):
     zabbixData = { 'request': 'sender data', 'data': []}
     #parse statistics to the zabbixData
     for dn,entry in statistics:
         if "monitorCounter" in entry:
             rdn,group = ldap.dn.explode_dn(dn,notypes=True)[:2]
-            item = { 'host': ZABBIXHOST, 
+            item = { 'host': host, 
                 'key': "{0}[{1},{2}]".format(
-                    ZABBIXKEY,  group.lower() , rdn.lower()),
+                    key,  group.lower() , rdn.lower()),
                 'value' : entry['monitorCounter'][0]}
             zabbixData['data'].append(item)
     #parse operations for the zabbixData
@@ -64,9 +69,9 @@ def ParseToLib(statistics, operations):
             rdn,group = ldap.dn.explode_dn(dn,notypes=True)[:2]
             if rdn == 'Operations':
                 rdn,group = 'total','operations'
-            item = { 'host': ZABBIXHOST, 
+            item = { 'host': host, 
                 'key': "{0}[{1},{2}]".format(
-                    ZABBIXKEY,  group.lower() , rdn.lower()),
+                    key,  group.lower() , rdn.lower()),
                 'value' : entry['monitorOpCompleted'][0]}
             zabbixData['data'].append(item)
     return zabbixData
@@ -93,26 +98,38 @@ def argParse():
     parser.add_argument('-w','--bindpw', default=BINDPASS, help='password for binding with')
     parser.add_argument('-b','--monitordb', default=MONITORDB, help='basedn of the monitor database')
     #parser.formatter.max_help_position = 80
-    args=parser.parse_args()
+    return parser.parse_args()
     
 ############
 #main script
 ############
 exitstatus = 0
 zabbixvalue = 1
-if len(sys.argv) > 0:
-    argParse()
 
+#check if these variables were commented out
+if 'BINDDN' not in globals():
+    BINDDN=''
+if 'BINDPASS' not in globals():
+    BINDPASS=''
+
+args = vars(argParse())
+print args
 #get password
-ldappass = getpw(BINDPASS)
+ldappass = getpw(args['bindpw'])
 
 #make ldap conn object
-conn = ldap.initialize(LDAPURI)
+conn = ldap.initialize(args['ldapuri'])
 #get ldap data
 try:
-    conn.simple_bind_s(BINDDN,ldappass)
-    statistics = conn.search_s("cn=statistics,"+MONITORDB, ldap.SCOPE_SUBTREE,attrlist=['monitorCounter'])
-    operations = conn.search_s("cn=operations,"+MONITORDB, ldap.SCOPE_SUBTREE,attrlist=['monitorOpCompleted'])
+    if args['binddn']:
+        if args['bindpw']:
+            conn.simple_bind_s(args['binddn'],args['bindpw'])
+        else:
+            conn.simple_bind_s(args['binddn'])
+    else:
+        conn.simple_bind_s()
+    statistics = conn.search_s("cn=statistics,"+args['monitordb'], ldap.SCOPE_SUBTREE,attrlist=['monitorCounter'])
+    operations = conn.search_s("cn=operations,"+args['monitordb'], ldap.SCOPE_SUBTREE,attrlist=['monitorOpCompleted'])
 except Exception as e:
     print 'LDAP connection error: {0}'.format(type(e).__name__)
     zabbixvalue = 0
@@ -121,10 +138,10 @@ finally:
     conn.unbind()
 
 if exitstatus == 0:
-    data = ParseToLib(statistics, operations)
+    data = ParseToLib(args['zabbixhost'],args['zabbixkey'],statistics, operations)
     #initial zabbixData object
     
-    sendtozabbix(json.dumps(data))
+    sendtozabbix(args['zabbixserver'],args['zabbixport'],json.dumps(data))
 
 #print the value for zabbix
 print zabbixvalue
