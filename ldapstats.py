@@ -113,7 +113,6 @@ if 'BINDPASS' not in globals():
     BINDPASS=''
 
 args = vars(argParse())
-print args
 #get password
 if args['bindpw']:
     ldappass = getpw(args['bindpw'])
