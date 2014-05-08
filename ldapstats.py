@@ -117,7 +117,7 @@ print args
 #get password
 if args['bindpw']:
     ldappass = getpw(args['bindpw'])
-else
+else:
     ldappass = ''
 #make ldap conn object
 conn = ldap.initialize(args['ldapuri'])
